@@ -2,3 +2,4 @@
 - sfx-hit.wav      (удар о ракетку)
 - sfx-wall.wav     (удар о стену)
 - sfx-score.wav    (гол)
+- sfx-ready.wav    (готовность к перезапуску в онлайне)

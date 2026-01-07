@@ -230,8 +230,17 @@ class Client {
       return;
     }
 
-    if (data.type === "restart" && this.room) {
-      this.room.startGame();
+    if (data.type === "ready" && this.room) {
+      if (!this.room.state.winner) return;
+      this.room.ready[this.role] = true;
+      this.room.broadcast({
+        type: "ready",
+        ready: this.room.ready,
+        from: this.role,
+      });
+      if (this.room.ready.left && this.room.ready.right) {
+        this.room.startGame();
+      }
       return;
     }
   }
@@ -252,6 +261,7 @@ class Room {
     this.clients = { left: null, right: null };
     this.inputs = { left: BASE.h / 2, right: BASE.h / 2 };
     this.state = makeState();
+    this.ready = { left: false, right: false };
     this.interval = null;
     this.lastTick = Date.now();
   }
@@ -288,6 +298,8 @@ class Room {
     this.state = makeState();
     this.inputs.left = BASE.h / 2;
     this.inputs.right = BASE.h / 2;
+    this.ready.left = false;
+    this.ready.right = false;
     if (this.clients.left) {
       this.clients.left.send({ type: "start", role: "left", scoreLimit: SCORE_LIMIT, code: this.code });
     }

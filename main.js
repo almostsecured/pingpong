@@ -4,11 +4,11 @@
   const scoreLeftEl = document.getElementById("score-left");
   const scoreRightEl = document.getElementById("score-right");
   const statusEl = document.getElementById("status-text");
+  const winnerBanner = document.getElementById("winner-banner");
   const menuEl = document.getElementById("menu");
   const localBtn = document.getElementById("local-btn");
   const onlineBtn = document.getElementById("online-btn");
   const settingsBtn = document.getElementById("settings-btn");
-  const resumeBtn = document.getElementById("resume-btn");
   const restartBtn = document.getElementById("restart-btn");
   const createLobbyBtn = document.getElementById("create-lobby-btn");
   const joinLobbyBtn = document.getElementById("join-lobby-btn");
@@ -17,8 +17,8 @@
   const settingsBackBtn = document.getElementById("settings-back-btn");
   const lobbyCodeEl = document.getElementById("lobby-code");
   const lobbyStatusEl = document.getElementById("lobby-status");
-  const joinCodeInput = document.getElementById("join-code");
-  const serverUrlInput = document.getElementById("server-url");
+  const joinCodeGroup = document.getElementById("join-code");
+  const joinCodeBoxes = joinCodeGroup ? Array.from(joinCodeGroup.querySelectorAll(".code-box")) : [];
   const screenMain = document.getElementById("screen-main");
   const screenLobby = document.getElementById("screen-lobby");
   const screenSettings = document.getElementById("screen-settings");
@@ -73,7 +73,11 @@
     renderState: null,
     lastStateAt: 0,
     score: { left: 0, right: 0 },
+    ready: { left: false, right: false },
   };
+
+  let restartPulseTimer = null;
+  let winnerHideTimer = null;
 
   const left = {
     x: 88,
@@ -113,6 +117,7 @@
     hit: "audio/sfx-hit.wav",
     wall: "audio/sfx-wall.wav",
     score: "audio/sfx-score.wav",
+    ready: "audio/sfx-ready.wav",
   };
 
   const audio = {
@@ -134,6 +139,7 @@
       this.pools.hit = createAudioPool(AUDIO_FILES.hit, 6, 0.5);
       this.pools.wall = createAudioPool(AUDIO_FILES.wall, 4, 0.4);
       this.pools.score = createAudioPool(AUDIO_FILES.score, 3, 0.6);
+      this.pools.ready = createAudioPool(AUDIO_FILES.ready, 2, 0.6);
       this.ready = true;
     },
 
@@ -241,13 +247,12 @@
     lobbyCodeEl.textContent = code || "----";
   }
 
-  function normalizeServerUrl(value) {
-    const trimmed = value.trim();
+  function normalizeServerUrl() {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const fallbackHost = window.location.host
       ? `${protocol}://${window.location.host}`
       : "ws://localhost:8080";
-    const base = trimmed || fallbackHost;
+    const base = fallbackHost;
     const withScheme = base.startsWith("ws://") || base.startsWith("wss://") ? base : `ws://${base}`;
     return withScheme.endsWith("/ws") ? withScheme : `${withScheme}/ws`;
   }
@@ -411,6 +416,49 @@
     statusEl.textContent = text;
   }
 
+  function getWinnerText() {
+    if (!state.winner) return "";
+    if (state.mode === "online") {
+      return state.winner === "left" ? "Победа" : "Поражение";
+    }
+    return state.winner === "left" ? "Победа слева" : "Победа справа";
+  }
+
+  function updateWinnerBanner() {
+    const text = getWinnerText();
+    if (winnerHideTimer) {
+      clearTimeout(winnerHideTimer);
+      winnerHideTimer = null;
+    }
+    winnerBanner.textContent = text;
+    winnerBanner.classList.toggle("is-visible", Boolean(text));
+    if (text) {
+      winnerHideTimer = setTimeout(() => {
+        winnerBanner.classList.remove("is-visible");
+      }, 2500);
+    }
+  }
+
+  function pulseRestartButton() {
+    if (!restartBtn) return;
+    restartBtn.classList.add("btn-pulse");
+    if (restartPulseTimer) clearTimeout(restartPulseTimer);
+    restartPulseTimer = setTimeout(() => {
+      restartBtn.classList.remove("btn-pulse");
+    }, 1800);
+  }
+
+  function getJoinCode() {
+    return joinCodeBoxes.map((box) => box.value.trim()).join("");
+  }
+
+  function clearJoinCode() {
+    joinCodeBoxes.forEach((box) => {
+      box.value = "";
+    });
+    if (joinCodeBoxes[0]) joinCodeBoxes[0].focus();
+  }
+
   function startLocalGame() {
     disconnectFromServer();
     state.mode = "local";
@@ -423,9 +471,10 @@
     updateScore();
     startServe(Math.random() > 0.5 ? 1 : -1);
     setMenuVisible(false);
-    resumeBtn.disabled = false;
     restartBtn.disabled = false;
+    restartBtn.classList.remove("btn-pulse");
     setStatus("В игре");
+    updateWinnerBanner();
     audio.unlock();
   }
 
@@ -434,18 +483,18 @@
     state.paused = false;
     setMenuVisible(false);
     setStatus(state.mode === "online" ? "Онлайн матч" : "В игре");
+    updateWinnerBanner();
   }
 
   function pauseGame(showMenu) {
     if (!state.running) return;
     state.paused = true;
     if (state.winner) {
-      setStatus(state.winner === "left" ? "Победа слева" : "Победа справа");
-      resumeBtn.disabled = true;
+      setStatus(getWinnerText());
     } else {
       setStatus("Пауза");
-      resumeBtn.disabled = false;
     }
+    updateWinnerBanner();
     if (showMenu) setMenuVisible(true);
   }
 
@@ -459,7 +508,7 @@
   function openLobby() {
     setLobbyStatus("Не подключено");
     setLobbyCode("");
-    joinCodeInput.value = "";
+    clearJoinCode();
     setMenuVisible(true, "lobby");
   }
 
@@ -480,15 +529,18 @@
     net.local.vy = 0;
     net.score.left = 0;
     net.score.right = 0;
+    net.ready.left = false;
+    net.ready.right = false;
     left.y = BASE.h / 2;
     right.y = BASE.h / 2;
     ball.x = BASE.w / 2;
     ball.y = BASE.h / 2;
     updateScoreForRole();
-    resumeBtn.disabled = false;
     restartBtn.disabled = false;
+    restartBtn.classList.remove("btn-pulse");
     setStatus("Онлайн матч");
     setMenuVisible(false);
+    updateWinnerBanner();
     audio.unlock();
   }
 
@@ -561,7 +613,7 @@
   }
 
   function connectToServer(pendingPayload) {
-    const url = normalizeServerUrl(serverUrlInput.value || "");
+    const url = normalizeServerUrl();
     if (net.socket) {
       net.socket.close();
     }
@@ -602,6 +654,9 @@
     net.roomCode = "";
     net.role = null;
     net.pendingPayload = null;
+    net.ready.left = false;
+    net.ready.right = false;
+    restartBtn.classList.remove("btn-pulse");
     setLobbyCode("");
   }
 
@@ -650,6 +705,20 @@
       return;
     }
 
+    if (data.type === "ready") {
+      if (data.ready) {
+        net.ready.left = Boolean(data.ready.left);
+        net.ready.right = Boolean(data.ready.right);
+        const count = (net.ready.left ? 1 : 0) + (net.ready.right ? 1 : 0);
+        setStatus(`Готовы: ${count}/2`);
+        if (data.from && data.from !== state.role) {
+          pulseRestartButton();
+          audio.play("ready");
+        }
+      }
+      return;
+    }
+
     if (data.type === "gameover") {
       if (state.role === "right") {
         state.winner = data.winner === "left" ? "right" : "left";
@@ -692,7 +761,6 @@
 
     updatePaddle(left, leftInputY, dt);
     updatePaddle(right, rightInputY, dt);
-    applyMouseControl(left, dt);
 
     updateBall(dt);
   }
@@ -922,13 +990,36 @@
     setLobbyStatus("Отключено");
   });
 
-  joinCodeInput.addEventListener("input", () => {
-    joinCodeInput.value = joinCodeInput.value.toUpperCase();
-  });
-  joinCodeInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      joinLobbyBtn.click();
-    }
+  joinCodeBoxes.forEach((box, index) => {
+    box.addEventListener("input", (event) => {
+      const cleaned = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      event.target.value = cleaned.slice(0, 1);
+      if (cleaned && joinCodeBoxes[index + 1]) {
+        joinCodeBoxes[index + 1].focus();
+      }
+    });
+    box.addEventListener("keydown", (event) => {
+      if (event.key === "Backspace" && !event.target.value && joinCodeBoxes[index - 1]) {
+        joinCodeBoxes[index - 1].focus();
+      }
+      if (event.key === "Enter") {
+        joinLobbyBtn.click();
+      }
+    });
+    box.addEventListener("paste", (event) => {
+      const text = event.clipboardData
+        .getData("text")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, joinCodeBoxes.length);
+      if (!text) return;
+      event.preventDefault();
+      joinCodeBoxes.forEach((target, idx) => {
+        target.value = text[idx] || "";
+      });
+      const focusIndex = Math.min(text.length, joinCodeBoxes.length) - 1;
+      if (joinCodeBoxes[focusIndex]) joinCodeBoxes[focusIndex].focus();
+    });
   });
 
   createLobbyBtn.addEventListener("click", () => {
@@ -936,18 +1027,18 @@
   });
 
   joinLobbyBtn.addEventListener("click", () => {
-    const code = joinCodeInput.value.trim().toUpperCase();
-    if (!code) {
+    const code = getJoinCode().toUpperCase();
+    if (code.length !== joinCodeBoxes.length) {
       setLobbyStatus("Введите код");
       return;
     }
     connectToServer({ type: "join", code });
   });
 
-  resumeBtn.addEventListener("click", () => resumeGame());
   restartBtn.addEventListener("click", () => {
     if (state.mode === "online") {
-      sendNet({ type: "restart" });
+      if (!state.winner) return;
+      sendNet({ type: "ready" });
     } else {
       startLocalGame();
     }
@@ -971,13 +1062,9 @@
     state.scoreRight = 0;
     updateScore();
     setStatus("Пауза");
-    resumeBtn.disabled = true;
     restartBtn.disabled = true;
     showScreen("main");
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    serverUrlInput.value = window.location.host
-      ? `${protocol}://${window.location.host}`
-      : "ws://localhost:8080";
+    updateWinnerBanner();
     requestAnimationFrame(loop);
   }
 

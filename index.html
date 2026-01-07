@@ -18,40 +18,33 @@
         </div>
         <div id="status-text" class="status">Пауза</div>
       </div>
+      <div id="winner-banner" class="winner-banner" aria-live="polite"></div>
 
       <div id="menu" class="menu is-visible" role="dialog" aria-modal="true">
         <div class="menu-panel">
           <div class="menu-glow"></div>
-          <div class="menu-header">
-            <p class="menu-eyebrow">NEON ARENA</p>
-            <h1 class="menu-title">PING PONG</h1>
-            <p class="menu-subtitle">Два игрока. Максимум скорости. Никаких ботов.</p>
-          </div>
-
           <div class="menu-body">
             <div id="screen-main" class="menu-screen is-active">
               <div class="menu-actions">
                 <button id="local-btn" class="btn btn-primary">Игра на одном ПК</button>
                 <button id="online-btn" class="btn btn-ghost">Мультиплеер</button>
                 <button id="settings-btn" class="btn btn-ghost">Настройки</button>
-                <button id="resume-btn" class="btn btn-ghost" disabled>Продолжить</button>
                 <button id="restart-btn" class="btn btn-ghost">Перезапуск</button>
               </div>
 
               <div class="menu-controls">
                 <div class="control-block">
                   <h2>Локальная игра</h2>
-                  <p>Левый: W / S + мышь</p>
+                  <p>Левый: W / S</p>
                   <p>Правый: ↑ / ↓</p>
                 </div>
                 <div class="control-block">
                   <h2>Онлайн</h2>
-                  <p>↑ / ↓ — вверх-вниз</p>
-                  <p>Мышь — точное позиционирование по Y</p>
+                  <p>↑ / ↓ + мышь</p>
                 </div>
                 <div class="control-block">
                   <h2>Глобально</h2>
-                  <p>Space — пауза</p>
+                  <p>Space — пауза/продолжить</p>
                   <p>Esc — меню</p>
                 </div>
               </div>
@@ -67,13 +60,13 @@
                 </div>
                 <div class="lobby-card">
                   <h2>Подключиться</h2>
-                  <input id="join-code" class="lobby-input" placeholder="Код комнаты" maxlength="6" />
+                  <div id="join-code" class="code-input" role="group" aria-label="Код комнаты">
+                    <input class="code-box" inputmode="text" maxlength="1" aria-label="Код 1" />
+                    <input class="code-box" inputmode="text" maxlength="1" aria-label="Код 2" />
+                    <input class="code-box" inputmode="text" maxlength="1" aria-label="Код 3" />
+                    <input class="code-box" inputmode="text" maxlength="1" aria-label="Код 4" />
+                  </div>
                   <button id="join-lobby-btn" class="btn btn-ghost">Подключиться</button>
-                </div>
-                <div class="lobby-card">
-                  <h2>Сервер</h2>
-                  <input id="server-url" class="lobby-input" placeholder="ws://localhost:8080" />
-                  <p class="lobby-hint">По умолчанию используется текущий домен.</p>
                 </div>
               </div>
               <div class="lobby-actions">
