@@ -1,0 +1,4 @@
+- bg-loop.mp3      (фон, будет зациклен)
+- sfx-hit.wav      (удар о ракетку)
+- sfx-wall.wav     (удар о стену)
+- sfx-score.wav    (гол)
