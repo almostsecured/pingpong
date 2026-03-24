@@ -166,6 +166,19 @@
       this.enabledSfx = on;
     },
 
+    stopAll() {
+      if (this.music) {
+        this.music.pause();
+        this.music.currentTime = 0;
+      }
+      Object.values(this.pools).forEach((pool) => {
+        pool.forEach((sound) => {
+          sound.pause();
+          sound.currentTime = 0;
+        });
+      });
+    },
+
     play(name) {
       if (!this.ready || !this.enabledSfx) return;
       const pool = this.pools[name];
@@ -1067,6 +1080,13 @@
     updateWinnerBanner();
     requestAnimationFrame(loop);
   }
+
+  window.__pong = {
+    pause: (showMenu = true) => pauseGame(showMenu),
+    resume: () => resumeGame(),
+    resize: () => resize(),
+    stopAudio: () => audio.stopAll(),
+  };
 
   init();
 })();
